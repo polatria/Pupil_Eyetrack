@@ -2,6 +2,7 @@ import zmq
 from msgpack import loads
 import time
 import numpy as np
+import os
 import csv
 
 context = zmq.Context()
@@ -22,40 +23,57 @@ sub.connect(f'tcp://{addr}:{sub_port}')
 # recv just pupil/gaze/notifications
 sub.setsockopt_string(zmq.SUBSCRIBE, 'pupil.')
 
-ellipse = [[], []]
-eyeball = [[], []]
-eyeside = ['Right', 'Left']
+TRIALTIME = 10  # 試行時間, unit: sec
+saveData = [[], []]
 
 input("Press Return key to start measurement...\n")
-start_time = time.time()
 while True:
-    try:
-        topic = sub.recv_string()
-        msg = sub.recv()
-        msg = loads(msg, encoding='utf-8')
-        if msg[u'confidence'] > 0.6:
-            eyeball[msg[u'id']].append(msg[u'sphere'][u'center'])
-            ellipse[msg[u'id']].append(msg[u'circle_3d'][u'center'])
-        else:
-            eyeball[msg[u'id']].append([0., 0., 0.])
-            ellipse[msg[u'id']].append([0., 0., 0.])
-        if time.time() - start_time > 10:  # 経過時間, unit: sec
+    ellipse = [[], []]
+    eyeball = [[], []]
+    start_time = time.time()
+    while True:
+        try:
+            topic = sub.recv_string()
+            msg = sub.recv()
+            msg = loads(msg, encoding='utf-8')
+            if msg[u'confidence'] > 0.6:
+                ellipse[msg[u'id']].append(msg[u'circle_3d'][u'center'])
+                eyeball[msg[u'id']].append(msg[u'sphere'][u'center'])
+            else:
+                ellipse[msg[u'id']].append([0., 0., 0.])
+                eyeball[msg[u'id']].append([0., 0., 0.])
+            if time.time() - start_time > TRIALTIME:
+                break
+        except KeyboardInterrupt:
             break
-    except KeyboardInterrupt:
+    needs = input('Save this data? (s: Save / d: Delete)')
+    if needs == 's':
+        saveData[0].append(ellipse)
+        saveData[1].append(eyeball)
+    next = input("Continue to next measurement? (c: Continue / x: Exit)\n")
+    if next == 'x':
         break
-input("Press Return key to next...\n")
 
-ans = input('Do you want to save this data? (y/n)')
-if ans == 'y':
-    for i in range(2):
-        file = f'elps{eyeside[i]}.csv'
-        with open(file, mode='a') as f:
-            w = csv.writer(f, lineterminator='\n')
-            for j in range(len(ellipse[i])):
-                el = ellipse[i][j]
-                w.writerow(el)
-        file = f'eybl{eyeside[i]}.csv'
-        with open(file, mode='a') as f:
-            w = csv.writer(f, lineterminator='\n')
-            for j in range(len(eyeball[i])):
-                w.writerow(eyeball[i][j])
+eyeside = ['./Right', './Left']
+eyepos = ['/elps', '/eybl']
+for i in range(2):
+    os.makedirs(eyeside[i], exist_ok=True)
+    for j in range(2):
+        os.makedirs(eyeside[i] + eyepos[j], exist_ok=True)
+
+dataofs = 0
+while True:
+    path = eyeside[i] + eyepos[j] + '/' + str(dataofs) + '.csv'
+    if os.path.exists(path):
+        dataofs += 1
+    else:
+        break
+
+for n in range(len(saveData[0])):
+    for i in range(len(eyeside)):
+        for j in range(len(eyepos)):
+            path = eyeside[i] + eyepos[j] + f'/{n + dataofs}.csv'
+            with open(path, mode='a') as f:
+                w = csv.writer(f, lineterminator='\n')
+                for k in range(len(saveData[j][n][i])):
+                    w.writerow(saveData[j][n][i][k])
