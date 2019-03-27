@@ -63,7 +63,7 @@ for i in range(2):
 
 dataofs = 0
 while True:
-    path = eyeside[i] + eyepos[j] + '/' + str(dataofs) + '.csv'
+    path = eyeside[0] + eyepos[0] + '/' + str(dataofs) + '.csv'
     if os.path.exists(path):
         dataofs += 1
     else:
