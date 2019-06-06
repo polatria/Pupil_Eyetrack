@@ -29,6 +29,8 @@ def getWLDVec(arr, eyeid):
     return np.reshape(np.delete(wld, 3, 0), -1)
 
 # 注視位置算出
+# eyeballn = [右眼の眼球中心の3次元座標ndarray，左眼の眼球中心の3次元座標ndarray]
+# ellipsen = [右眼の瞳孔中心の3次元座標ndarray，左眼の瞳孔中心の3次元座標ndarray]
 def getGazePoint(eyeballn, ellipsen):
     xz = [np.zeros(3), np.zeros(3)]
     mv = [np.zeros(3), np.zeros(3)]
